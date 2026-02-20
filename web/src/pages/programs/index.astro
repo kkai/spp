@@ -31,7 +31,7 @@ const wissBereiche = [...new Set(programs.map(p => p.wissenschaftsbereich))].sor
         Priority Programmes
       </h1>
       <p class="mt-3 text-lg" style="color: var(--text-secondary);">
-        {programs.length} DFG Schwerpunktprogramme with {programs.reduce((s, p) => s + p.projects_count, 0).toLocaleString()} research projects
+        {programs.length} Schwerpunktprogramme with {programs.reduce((s, p) => s + p.projects_count, 0).toLocaleString()} research projects
       </p>
     </div>
 
