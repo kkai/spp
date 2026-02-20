@@ -1,0 +1,168 @@
+---
+interface Props {
+  graphData: {
+    nodes: Array<{ id: string; label: string; type: string; size: number }>;
+    edges: Array<{ source: string; target: string; weight: number }>;
+  };
+}
+
+const { graphData } = Astro.props;
+---
+
+<div class="topic-graph-wrapper">
+  <div id="topic-graph" style="height: 500px; background: #131c2e; border-radius: 8px; border: 1px solid var(--border);"></div>
+  <script id="graph-data" type="application/json" set:html={JSON.stringify(graphData)} />
+</div>
+
+<script>
+  import cytoscape from 'cytoscape';
+
+  function initGraph() {
+    const container = document.getElementById('topic-graph');
+    const dataEl = document.getElementById('graph-data');
+    if (!container || !dataEl) return;
+
+    const graphData = JSON.parse(dataEl.textContent || '{"nodes":[],"edges":[]}');
+
+    const nodeColors: Record<string, string> = {
+      spp: '#2dd4bf',
+      topic: '#60a5fa',
+      keyword: '#cbd5e1',
+    };
+
+    const cy = cytoscape({
+      container,
+      elements: [
+        ...graphData.nodes.map((n: any) => ({
+          data: {
+            id: n.id,
+            label: n.label,
+            type: n.type,
+            size: n.size,
+          },
+        })),
+        ...graphData.edges.map((e: any, i: number) => ({
+          data: {
+            id: `edge-${i}`,
+            source: e.source,
+            target: e.target,
+            weight: e.weight,
+          },
+        })),
+      ],
+      style: [
+        {
+          selector: 'node',
+          style: {
+            label: 'data(label)',
+            'font-size': '9px',
+            'font-family': 'Inter, sans-serif',
+            color: '#f1f5f9',
+            'text-valign': 'bottom',
+            'text-margin-y': 6,
+            'text-outline-width': 2,
+            'text-outline-color': '#131c2e',
+            width: 'data(size)',
+            height: 'data(size)',
+            'min-zoomed-font-size': 8,
+          },
+        },
+        {
+          selector: 'node[type="spp"]',
+          style: {
+            'background-color': nodeColors.spp,
+            'font-size': '10px',
+            'font-weight': 600,
+          },
+        },
+        {
+          selector: 'node[type="topic"]',
+          style: {
+            'background-color': nodeColors.topic,
+            'font-size': '9px',
+          },
+        },
+        {
+          selector: 'node[type="keyword"]',
+          style: {
+            'background-color': nodeColors.keyword,
+            'font-size': '7px',
+          },
+        },
+        {
+          selector: 'edge',
+          style: {
+            width: 1.5,
+            'line-color': '#475569',
+            'curve-style': 'bezier',
+            opacity: 0.6,
+          },
+        },
+      ],
+      layout: {
+        name: 'cose',
+        animate: false,
+        nodeRepulsion: () => 8000,
+        idealEdgeLength: () => 80,
+        gravity: 0.3,
+        numIter: 500,
+      } as any,
+      minZoom: 0.3,
+      maxZoom: 3,
+    });
+
+    // Click to inspect
+    cy.on('tap', 'node', (evt) => {
+      const node = evt.target;
+      cy.elements().style({ opacity: 0.2 });
+      node.neighborhood().add(node).style({ opacity: 1 });
+    });
+
+    cy.on('tap', (evt) => {
+      if (evt.target === cy) {
+        cy.elements().style({ opacity: 1 });
+      }
+    });
+  }
+
+  // Initialize graph — use IntersectionObserver with timeout fallback
+  let initialized = false;
+
+  function tryInit() {
+    if (initialized) return;
+    initialized = true;
+    try {
+      initGraph();
+    } catch (e) {
+      console.error('TopicGraph init error:', e);
+    }
+  }
+
+  function setupObserver() {
+    const el = document.getElementById('topic-graph');
+    if (!el) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) {
+          tryInit();
+          observer.disconnect();
+        }
+      },
+      { threshold: 0.05 }
+    );
+    observer.observe(el);
+
+    // Fallback: init after 5s regardless
+    setTimeout(() => {
+      if (!initialized) tryInit();
+      observer.disconnect();
+    }, 5000);
+  }
+
+  setupObserver();
+  document.addEventListener('astro:after-swap', () => {
+    initialized = false;
+    setupObserver();
+  });
+</script>

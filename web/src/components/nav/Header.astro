@@ -1,0 +1,116 @@
+---
+const links = [
+  { href: '/', label: 'Home' },
+  { href: '/programs/', label: 'Programs' },
+  { href: '/focus/', label: 'AI & Wearables' },
+  { href: '/dashboard/', label: 'Dashboard' },
+];
+const currentPath = Astro.url.pathname;
+---
+
+<header class="fixed top-0 inset-x-0 z-50 border-b" style="background: var(--surface-0); border-color: var(--border);">
+  <nav class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+    <a href="/" class="flex items-center gap-2 font-bold text-lg" style="color: var(--text-primary);">
+      <span class="text-primary-500">SPP</span>
+      <span>Explorer</span>
+    </a>
+
+    <!-- Desktop nav -->
+    <div class="hidden md:flex items-center gap-1">
+      {links.map(({ href, label }) => {
+        const isActive = currentPath === href || (href !== '/' && currentPath.startsWith(href));
+        return (
+          <a
+            href={href}
+            class:list={[
+              'px-3 py-2 rounded-lg text-sm font-medium transition-colors',
+              isActive
+                ? 'bg-primary-500/10 text-primary-500'
+                : 'hover:bg-[var(--surface-1)]',
+            ]}
+            style={!isActive ? `color: var(--text-secondary)` : undefined}
+          >
+            {label}
+          </a>
+        );
+      })}
+      <button
+        id="theme-toggle"
+        class="ml-3 p-2 rounded-lg hover:bg-[var(--surface-1)] transition-colors"
+        style="color: var(--text-secondary);"
+        aria-label="Toggle theme"
+      >
+        <svg class="w-5 h-5 dark-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+        </svg>
+        <svg class="w-5 h-5 light-icon hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+        </svg>
+      </button>
+    </div>
+
+    <!-- Mobile menu button -->
+    <button
+      id="mobile-menu-btn"
+      class="md:hidden p-2 rounded-lg hover:bg-[var(--surface-1)]"
+      style="color: var(--text-secondary);"
+      aria-label="Menu"
+    >
+      <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+        <path d="M4 6h16M4 12h16M4 18h16" />
+      </svg>
+    </button>
+  </nav>
+
+  <!-- Mobile menu -->
+  <div id="mobile-menu" class="hidden md:hidden border-t" style="background: var(--surface-0); border-color: var(--border);">
+    <div class="px-4 py-3 space-y-1">
+      {links.map(({ href, label }) => {
+        const isActive = currentPath === href || (href !== '/' && currentPath.startsWith(href));
+        return (
+          <a
+            href={href}
+            class:list={[
+              'block px-3 py-2 rounded-lg text-sm font-medium',
+              isActive ? 'bg-primary-500/10 text-primary-500' : '',
+            ]}
+            style={!isActive ? `color: var(--text-secondary)` : undefined}
+          >
+            {label}
+          </a>
+        );
+      })}
+    </div>
+  </div>
+</header>
+
+<script>
+  function initHeader() {
+    const toggle = document.getElementById('theme-toggle');
+    const mobileBtn = document.getElementById('mobile-menu-btn');
+    const mobileMenu = document.getElementById('mobile-menu');
+
+    toggle?.addEventListener('click', () => {
+      const html = document.documentElement;
+      const isLight = html.classList.contains('light');
+      if (isLight) {
+        html.classList.remove('light');
+        html.classList.add('dark');
+        localStorage.setItem('theme', 'dark');
+      } else {
+        html.classList.remove('dark');
+        html.classList.add('light');
+        localStorage.setItem('theme', 'light');
+      }
+      // Toggle icons
+      document.querySelectorAll('.dark-icon').forEach(el => el.classList.toggle('hidden'));
+      document.querySelectorAll('.light-icon').forEach(el => el.classList.toggle('hidden'));
+    });
+
+    mobileBtn?.addEventListener('click', () => {
+      mobileMenu?.classList.toggle('hidden');
+    });
+  }
+  initHeader();
+  document.addEventListener('astro:after-swap', initHeader);
+</script>

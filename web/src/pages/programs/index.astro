@@ -1,0 +1,103 @@
+---
+import Page from '../../layouts/Page.astro';
+import ProgramCard from '../../components/programs/ProgramCard.astro';
+import ProgramFilterInit from '../../components/filters/ProgramFilterInit.astro';
+import { loadPrograms } from '../../data/loader';
+
+const programs = loadPrograms();
+
+// Sort: CS/AI-relevant first, then by SPP number
+const sorted = [...programs].sort((a, b) => {
+  const aScore = a.estimated_ai_relevance + a.estimated_wearables_relevance;
+  const bScore = b.estimated_ai_relevance + b.estimated_wearables_relevance;
+  if (bScore !== aScore) return bScore - aScore;
+  return a.spp_number.localeCompare(b.spp_number);
+});
+
+const categories = [
+  { id: 'all', label: 'All Programs', count: programs.length },
+  { id: 'ai', label: 'AI Relevant', count: programs.filter(p => p.estimated_ai_relevance > 0).length },
+  { id: 'wearables', label: 'Wearables', count: programs.filter(p => p.estimated_wearables_relevance > 0).length },
+  { id: 'infra', label: 'Infrastructure', count: programs.filter(p => p.variante.includes('Infrastruktur')).length },
+];
+
+const wissBereiche = [...new Set(programs.map(p => p.wissenschaftsbereich))].sort();
+---
+
+<Page title="Priority Programmes">
+  <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+    <div class="mb-10">
+      <h1 class="text-3xl sm:text-4xl font-extrabold tracking-tight" style="color: var(--text-primary);">
+        Priority Programmes
+      </h1>
+      <p class="mt-3 text-lg" style="color: var(--text-secondary);">
+        {programs.length} DFG Schwerpunktprogramme with {programs.reduce((s, p) => s + p.projects_count, 0).toLocaleString()} research projects
+      </p>
+    </div>
+
+    <!-- Search input -->
+    <div class="mb-4">
+      <input
+        type="search"
+        id="program-search"
+        placeholder="Search programmes..."
+        class="w-full max-w-md px-3 py-2 rounded-lg border text-sm"
+        style="background: var(--surface-1); border-color: var(--border); color: var(--text-primary);"
+      />
+    </div>
+
+    <!-- Category filter bar -->
+    <div class="flex flex-wrap gap-2 mb-4" id="filter-bar">
+      {categories.map(({ id, label, count }) => (
+        <button
+          class="filter-btn px-4 py-2 rounded-lg text-sm font-medium transition-colors border"
+          data-filter={id}
+          style="border-color: var(--border); color: var(--text-secondary);"
+        >
+          {label}
+          <span class="ml-1.5 text-xs opacity-60">{count}</span>
+        </button>
+      ))}
+    </div>
+
+    <!-- Wissenschaftsbereich chips -->
+    <div class="flex flex-wrap gap-2 mb-8" id="wiss-bar">
+      <button
+        class="wiss-btn px-3 py-1.5 rounded-full text-xs font-medium transition-colors border"
+        data-wiss="all"
+        style="border-color: var(--border); color: var(--text-secondary);"
+      >
+        All areas
+      </button>
+      {wissBereiche.map((wb) => (
+        <button
+          class="wiss-btn px-3 py-1.5 rounded-full text-xs font-medium transition-colors border"
+          data-wiss={wb}
+          style="border-color: var(--border); color: var(--text-secondary);"
+        >
+          {wb}
+        </button>
+      ))}
+    </div>
+
+    <p id="filter-count" class="text-sm mb-4" style="color: var(--text-muted);"></p>
+
+    <!-- Program grid -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" id="program-grid">
+      {sorted.map((program) => {
+        const shortTitle = program.title.replace(/^SPP \d+:\s*/, '').replace(/^Bereich \w+ - /, '');
+        return (
+          <div
+            class="program-card fade-in-up"
+            data-spp={program.spp_number}
+            data-title={shortTitle.toLowerCase()}
+            data-spp-lower={program.spp_number.toLowerCase()}
+          >
+            <ProgramCard program={program} />
+          </div>
+        );
+      })}
+    </div>
+    <ProgramFilterInit />
+  </section>
+</Page>

@@ -1,0 +1,375 @@
+---
+import Page from '../../layouts/Page.astro';
+import Badge from '../../components/ui/Badge.astro';
+import ScoreBar from '../../components/ui/ScoreBar.astro';
+import Tag from '../../components/ui/Tag.astro';
+import Card from '../../components/ui/Card.astro';
+import Breadcrumbs from '../../components/nav/Breadcrumbs.astro';
+import SppFilterInit from '../../components/filters/SppFilterInit.astro';
+import { loadPrograms, loadSummaryMarkdown } from '../../data/loader';
+import { marked } from 'marked';
+import type { SPPProgram, Project } from '../../data/types';
+
+export function getStaticPaths() {
+  const programs = loadPrograms();
+  return programs.map((p) => ({
+    params: { spp: p.slug },
+    props: { program: p },
+  }));
+}
+
+interface Props {
+  program: SPPProgram;
+}
+
+const { program } = Astro.props;
+
+const shortTitle = program.title
+  .replace(/^SPP \d+:\s*/, '')
+  .replace(/^Bereich \w+ - /, '');
+
+// Use full_description from detailed JSON, truncate before project listings
+const rawDesc = program.full_description || '';
+// Cut off at "DFG-Verfahren" or "Projekte" markers which signal the start of metadata
+const descCutoff = rawDesc.search(/DFG-Verfahren|ProjekteALMANAC|Projekte[A-Z]/);
+const cleanDesc = descCutoff > 0 ? rawDesc.slice(0, descCutoff).trim() : rawDesc.slice(0, 2000).trim();
+const overviewHtml = cleanDesc ? `<p>${cleanDesc.replace(/\n\n/g, '</p><p>')}</p>` : '';
+
+const hasRelevance = program.estimated_ai_relevance > 0 || program.estimated_wearables_relevance > 0;
+
+// Sort projects: highest combined score first
+const projects = [...program.projects].sort((a, b) => b.combined_score - a.combined_score);
+
+// Load AI-generated summary markdown
+const summaryMd = loadSummaryMarkdown(program.spp_number);
+const summaryHtml = summaryMd ? await marked.parse(summaryMd) : '';
+
+// Subject area distribution
+const areaMap = new Map<string, number>();
+for (const p of projects) {
+  const area = p.subject_area || p.dfg_classification || 'Unknown';
+  const areas = area.split(/(?=[A-Z][a-zäöü])/).filter(Boolean);
+  for (const a of areas) {
+    const trimmed = a.trim();
+    if (trimmed.length > 3) {
+      areaMap.set(trimmed, (areaMap.get(trimmed) || 0) + 1);
+    }
+  }
+}
+const topAreas = [...areaMap.entries()]
+  .sort((a, b) => b[1] - a[1])
+  .slice(0, 8);
+
+// Serialize compact project data for client-side filtering
+const FALLBACK_COUNT = 25;
+const projectData = projects.map((p) => ({
+  id: p.project_id,
+  title: p.title,
+  pi: p.principal_investigator,
+  keywords: p.keywords,
+  funding: p.funding_period,
+  url: p.url,
+  ai: p.ai_score,
+  wear: p.wearables_score,
+  combined: p.combined_score,
+  aiKw: p.matched_ai_keywords,
+  wearKw: p.matched_wearables_keywords,
+  abstract: (p.abstract || p.description || '').slice(0, 300),
+  subjectArea: p.subject_area || '',
+  dfgClass: (p.dfg_classification || '').slice(0, 100),
+  spp: p.spp_number,
+  sppSlug: '',
+}));
+
+// First N projects for no-JS fallback
+const fallbackProjects = projects.slice(0, FALLBACK_COUNT);
+
+function getKeywords(kw: string, limit = 5): string[] {
+  if (!kw) return [];
+  return kw.split(/[,;]/).map((k: string) => k.trim()).filter(Boolean).slice(0, limit);
+}
+function extraKeywordCount(kw: string, limit = 5): number {
+  if (!kw) return 0;
+  const total = kw.split(/[,;]/).map((k: string) => k.trim()).filter(Boolean).length;
+  return Math.max(0, total - limit);
+}
+---
+
+<Page title={`${program.spp_number}: ${shortTitle}`}>
+  <!-- Breadcrumbs -->
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
+    <Breadcrumbs crumbs={[
+      { label: 'Programs', href: '/programs/' },
+      { label: `${program.spp_number}: ${shortTitle}` },
+    ]} />
+  </div>
+
+  <!-- Hero -->
+  <section class="border-b" style="background: var(--surface-1); border-color: var(--border);">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <div class="flex flex-wrap items-center gap-3 mb-4">
+        <Badge variant="primary" size="md">{program.spp_number}</Badge>
+        <Badge>{program.wissenschaftsbereich}</Badge>
+        <Badge>{program.variante}</Badge>
+        {program.estimated_ai_relevance > 0 && <Badge variant="ai">AI Relevant</Badge>}
+        {program.estimated_wearables_relevance > 0 && <Badge variant="wearables">Wearables</Badge>}
+      </div>
+
+      <h1 class="text-3xl sm:text-4xl font-extrabold tracking-tight mb-4" style="color: var(--text-primary);">
+        {shortTitle}
+      </h1>
+
+      <div class="flex flex-wrap gap-x-8 gap-y-2 text-sm" style="color: var(--text-secondary);">
+        {program.beginn && <span>Started: {program.beginn}</span>}
+        {program.bundesland && <span>{program.bundesland}</span>}
+        {program.projects_count > 0 && <span>{program.projects_count} projects</span>}
+        {program.coordinator_name && <span>Coordinator: {program.coordinator_name}</span>}
+      </div>
+
+      {program.int_bezug && (
+        <p class="mt-4 text-sm" style="color: var(--text-muted);">
+          International: {program.int_bezug.split(', ').slice(0, 8).join(', ')}
+          {program.int_bezug.split(', ').length > 8 && ` +${program.int_bezug.split(', ').length - 8} more`}
+        </p>
+      )}
+
+      {hasRelevance && (
+        <div class="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-md">
+          {program.estimated_ai_relevance > 0 && (
+            <ScoreBar score={program.estimated_ai_relevance} max={5} color="ai" label="AI Score" />
+          )}
+          {program.estimated_wearables_relevance > 0 && (
+            <ScoreBar score={program.estimated_wearables_relevance} max={5} color="wearables" label="Wearables" />
+          )}
+        </div>
+      )}
+    </div>
+  </section>
+
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-12">
+      <!-- Main content -->
+      <div class="lg:col-span-2 space-y-12">
+        <!-- Description -->
+        {overviewHtml && (
+          <section>
+            <h2 class="text-xl font-bold mb-4" style="color: var(--text-primary);">Program Overview</h2>
+            <div class="prose prose-sm max-w-none" style="color: var(--text-secondary);" set:html={overviewHtml} />
+          </section>
+        )}
+
+        {program.full_description && !overviewHtml && (
+          <section>
+            <h2 class="text-xl font-bold mb-4" style="color: var(--text-primary);">Description</h2>
+            <p class="text-sm leading-relaxed" style="color: var(--text-secondary);">
+              {program.full_description.slice(0, 800)}
+              {program.full_description.length > 800 && '…'}
+            </p>
+          </section>
+        )}
+
+        <!-- AI-Generated Summary -->
+        {summaryHtml && (
+          <section>
+            <details class="rounded-xl border p-4" style="background: var(--surface-1); border-color: var(--border);">
+              <summary class="text-sm font-semibold cursor-pointer select-none" style="color: var(--text-primary);">
+                AI-Generated Programme Summary
+              </summary>
+              <div class="prose prose-sm max-w-none mt-4" style="color: var(--text-secondary);" set:html={summaryHtml} />
+            </details>
+          </section>
+        )}
+
+        <!-- Projects with search/filter/pagination -->
+        <section>
+          <h2 class="text-xl font-bold mb-4" style="color: var(--text-primary);">
+            Projects <span id="project-count">({projects.length})</span>
+          </h2>
+
+          <!-- Filter bar -->
+          <div class="flex flex-col sm:flex-row gap-3 mb-6 p-4 rounded-xl border" style="background: var(--surface-1); border-color: var(--border);" id="filter-bar">
+            <div class="flex-1">
+              <input
+                type="search"
+                id="search-input"
+                placeholder="Search projects..."
+                class="w-full px-3 py-2 rounded-lg border text-sm"
+                style="background: var(--surface-0); border-color: var(--border); color: var(--text-primary);"
+              />
+            </div>
+            <select id="score-filter" class="px-3 py-2 rounded-lg border text-sm" style="background: var(--surface-0); border-color: var(--border); color: var(--text-primary);">
+              <option value="0">All scores</option>
+              <option value="1">Score &ge; 1</option>
+              <option value="2">Score &ge; 2</option>
+              <option value="3">Score &ge; 3</option>
+              <option value="5">Score &ge; 5</option>
+            </select>
+            <select id="sort-select" class="px-3 py-2 rounded-lg border text-sm" style="background: var(--surface-0); border-color: var(--border); color: var(--text-primary);">
+              <option value="score">Sort by score</option>
+              <option value="title">Sort by title</option>
+              <option value="pi">Sort by PI</option>
+            </select>
+            <span id="result-count" class="text-sm self-center whitespace-nowrap" style="color: var(--text-muted);"></span>
+          </div>
+
+          <!-- Project data for client-side filtering -->
+          <script type="application/json" id="project-data" set:html={JSON.stringify(projectData)}></script>
+
+          <!-- Server-rendered fallback (first N projects) -->
+          <div class="space-y-3" id="project-list">
+            {fallbackProjects.map((project) => (
+              <Card padding="sm">
+                <div class="flex items-start justify-between gap-3">
+                  <div class="flex-1 min-w-0">
+                    <a
+                      href={project.url}
+                      target="_blank"
+                      rel="noopener"
+                      class="text-sm font-semibold hover:text-primary-500 transition-colors line-clamp-2"
+                      style="color: var(--text-primary);"
+                    >
+                      {project.title}
+                    </a>
+                    {project.principal_investigator && (
+                      <p class="text-xs mt-1" style="color: var(--text-muted);">
+                        {project.principal_investigator}
+                      </p>
+                    )}
+                    {project.funding_period && (
+                      <p class="text-xs mt-0.5" style="color: var(--text-muted);">
+                        {project.funding_period}
+                      </p>
+                    )}
+                    {project.combined_score > 0 && (
+                      <div class="flex flex-wrap gap-1 mt-2">
+                        {project.matched_ai_keywords && project.matched_ai_keywords.split(',').map((kw: string) => (
+                          <Tag variant="ai">{kw.trim()}</Tag>
+                        ))}
+                        {project.matched_wearables_keywords && project.matched_wearables_keywords.split(',').map((kw: string) => (
+                          <Tag variant="wearables">{kw.trim()}</Tag>
+                        ))}
+                      </div>
+                    )}
+                    {getKeywords(project.keywords).length > 0 && (
+                      <div class="flex flex-wrap gap-1 mt-2">
+                        {getKeywords(project.keywords).map((kw) => (
+                          <Tag>{kw}</Tag>
+                        ))}
+                        {extraKeywordCount(project.keywords) > 0 && (
+                          <span class="text-xs" style="color: var(--text-muted);">+{extraKeywordCount(project.keywords)} more</span>
+                        )}
+                      </div>
+                    )}
+                    {project.url && (
+                      <a href={project.url} target="_blank" rel="noopener"
+                         class="inline-flex items-center gap-1 text-xs mt-2 text-primary-500 hover:underline">
+                        GEPRIS ↗
+                      </a>
+                    )}
+                  </div>
+                  {project.combined_score > 0 && (
+                    <div class="flex gap-2 shrink-0">
+                      {project.ai_score > 0 && (
+                        <span class="text-xs font-mono px-1.5 py-0.5 rounded" style="background: var(--color-ai-dim); color: var(--color-ai);">
+                          AI {project.ai_score.toFixed(1)}
+                        </span>
+                      )}
+                      {project.wearables_score > 0 && (
+                        <span class="text-xs font-mono px-1.5 py-0.5 rounded" style="background: var(--color-wearables-dim); color: var(--color-wearables);">
+                          W {project.wearables_score.toFixed(1)}
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </Card>
+            ))}
+          </div>
+
+          {projects.length > FALLBACK_COUNT && (
+            <noscript>
+              <p class="text-sm mt-4 p-3 rounded-lg border" style="color: var(--text-muted); border-color: var(--border); background: var(--surface-1);">
+                Showing {FALLBACK_COUNT} of {projects.length} projects. Enable JavaScript to see all projects with search and filtering.
+              </p>
+            </noscript>
+          )}
+
+          <!-- Pagination container -->
+          <div id="pagination-nav"></div>
+        </section>
+      </div>
+
+      <!-- Sidebar -->
+      <aside class="space-y-8">
+        <!-- Quick stats -->
+        <Card>
+          <h3 class="text-sm font-semibold mb-4" style="color: var(--text-primary);">Quick Stats</h3>
+          <dl class="space-y-3 text-sm">
+            <div class="flex justify-between">
+              <dt style="color: var(--text-muted);">Projects</dt>
+              <dd class="font-mono" style="color: var(--text-primary);">{projects.length}</dd>
+            </div>
+            <div class="flex justify-between">
+              <dt style="color: var(--text-muted);">AI-relevant</dt>
+              <dd class="font-mono" style="color: var(--color-ai);">
+                {projects.filter(p => p.ai_score >= 1).length}
+              </dd>
+            </div>
+            <div class="flex justify-between">
+              <dt style="color: var(--text-muted);">Wearables</dt>
+              <dd class="font-mono" style="color: var(--color-wearables);">
+                {projects.filter(p => p.wearables_score >= 1).length}
+              </dd>
+            </div>
+            <div class="flex justify-between">
+              <dt style="color: var(--text-muted);">Started</dt>
+              <dd class="font-mono" style="color: var(--text-primary);">{program.beginn}</dd>
+            </div>
+          </dl>
+        </Card>
+
+        <!-- Subject areas -->
+        {topAreas.length > 0 && (
+          <Card>
+            <h3 class="text-sm font-semibold mb-4" style="color: var(--text-primary);">Subject Areas</h3>
+            <div class="space-y-2">
+              {topAreas.map(([area, count]) => (
+                <div class="flex items-center gap-2">
+                  <div class="flex-1 text-xs truncate" style="color: var(--text-secondary);" title={area}>
+                    {area}
+                  </div>
+                  <span class="text-xs font-mono shrink-0" style="color: var(--text-muted);">{count}</span>
+                </div>
+              ))}
+            </div>
+          </Card>
+        )}
+
+        <!-- Links -->
+        <Card>
+          <h3 class="text-sm font-semibold mb-4" style="color: var(--text-primary);">Links</h3>
+          <div class="space-y-2">
+            {program.website && (
+              <a href={program.website} target="_blank" rel="noopener"
+                 class="inline-flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm font-medium transition-colors"
+                 style="background: var(--color-primary-500); color: white;">
+                <svg class="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <path d="M12 21a9 9 0 100-18 9 9 0 000 18z" />
+                  <path d="M3.6 9h16.8M3.6 15h16.8M12 3a15 15 0 014 9 15 15 0 01-4 9 15 15 0 01-4-9 15 15 0 014-9z" />
+                </svg>
+                Program Homepage ↗
+              </a>
+            )}
+            <a href={program.detail_page_url} target="_blank" rel="noopener" class="block text-sm text-primary-500 hover:underline">
+              GEPRIS Program Page ↗
+            </a>
+            <a href={program.projects_url} target="_blank" rel="noopener" class="block text-sm text-primary-500 hover:underline">
+              GEPRIS Projects List ↗
+            </a>
+          </div>
+        </Card>
+      </aside>
+    </div>
+  </div>
+  <SppFilterInit />
+</Page>

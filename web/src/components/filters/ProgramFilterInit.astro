@@ -1,0 +1,114 @@
+<script>
+  function initFilters() {
+    const filterBar = document.getElementById('filter-bar');
+    const wissBar = document.getElementById('wiss-bar');
+    const searchInput = document.getElementById('program-search') as HTMLInputElement;
+    const filterCount = document.getElementById('filter-count');
+    const cards = document.querySelectorAll<HTMLElement>('.program-card');
+
+    let activeFilter = 'all';
+    let activeWiss = 'all';
+    let searchQuery = '';
+
+    // Read URL state
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('filter')) activeFilter = params.get('filter')!;
+    if (params.get('wiss')) activeWiss = params.get('wiss')!;
+    if (params.get('q')) {
+      searchQuery = params.get('q')!;
+      if (searchInput) searchInput.value = searchQuery;
+    }
+
+    function writeUrl() {
+      const p = new URLSearchParams();
+      if (activeFilter !== 'all') p.set('filter', activeFilter);
+      if (activeWiss !== 'all') p.set('wiss', activeWiss);
+      if (searchQuery) p.set('q', searchQuery);
+      const qs = p.toString();
+      const url = qs ? `${window.location.pathname}?${qs}` : window.location.pathname;
+      history.replaceState(null, '', url);
+    }
+
+    function setActiveBtn(bar: HTMLElement, selector: string, activeValue: string, dataAttr: string) {
+      bar.querySelectorAll(selector).forEach((b) => {
+        const el = b as HTMLElement;
+        const isActive = el.dataset[dataAttr] === activeValue;
+        el.style.borderColor = isActive ? 'var(--color-primary-500)' : 'var(--border)';
+        el.style.background = isActive ? 'var(--color-primary-500)10' : 'transparent';
+      });
+    }
+
+    function applyFilters() {
+      let visibleCount = 0;
+      cards.forEach((card) => {
+        const inner = card.querySelector('[data-ai]') as HTMLElement;
+        if (!inner) return;
+
+        let show = true;
+
+        // Category filter
+        if (activeFilter === 'ai') show = inner.dataset.ai === 'true';
+        else if (activeFilter === 'wearables') show = inner.dataset.wearables === 'true';
+        else if (activeFilter === 'infra') show = (inner.dataset.category || '').includes('Infrastruktur');
+
+        // Wissenschaftsbereich filter
+        if (show && activeWiss !== 'all') {
+          show = inner.dataset.wiss === activeWiss;
+        }
+
+        // Text search
+        if (show && searchQuery) {
+          const title = card.dataset.title || '';
+          const spp = card.dataset.sppLower || '';
+          const terms = searchQuery.toLowerCase().split(/\s+/);
+          show = terms.every(t => title.includes(t) || spp.includes(t));
+        }
+
+        card.style.display = show ? '' : 'none';
+        if (show) visibleCount++;
+      });
+
+      if (filterCount) {
+        filterCount.textContent = visibleCount === cards.length
+          ? ''
+          : `Showing ${visibleCount} of ${cards.length} programmes`;
+      }
+
+      setActiveBtn(filterBar!, '.filter-btn', activeFilter, 'filter');
+      setActiveBtn(wissBar!, '.wiss-btn', activeWiss, 'wiss');
+      writeUrl();
+    }
+
+    // Category filter clicks
+    filterBar?.addEventListener('click', (e) => {
+      const btn = (e.target as HTMLElement).closest('.filter-btn') as HTMLElement;
+      if (!btn) return;
+      activeFilter = btn.dataset.filter || 'all';
+      applyFilters();
+    });
+
+    // Wissenschaftsbereich clicks
+    wissBar?.addEventListener('click', (e) => {
+      const btn = (e.target as HTMLElement).closest('.wiss-btn') as HTMLElement;
+      if (!btn) return;
+      activeWiss = btn.dataset.wiss || 'all';
+      applyFilters();
+    });
+
+    // Search
+    let debounceTimer: ReturnType<typeof setTimeout>;
+    searchInput?.addEventListener('input', () => {
+      clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => {
+        searchQuery = searchInput.value.trim();
+        applyFilters();
+      }, 150);
+    });
+
+    // Initial apply
+    applyFilters();
+  }
+
+  initFilters();
+  document.addEventListener('astro:after-swap', initFilters);
+</script>

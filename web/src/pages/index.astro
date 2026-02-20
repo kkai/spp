@@ -1,0 +1,158 @@
+---
+import Page from '../layouts/Page.astro';
+import Stat from '../components/ui/Stat.astro';
+import Card from '../components/ui/Card.astro';
+import Badge from '../components/ui/Badge.astro';
+import ScoreBar from '../components/ui/ScoreBar.astro';
+import { loadPrograms, loadStats } from '../data/loader';
+
+const stats = loadStats();
+const programs = loadPrograms();
+
+// Top programmes by combined AI + wearables relevance
+const featured = [...programs]
+  .sort((a, b) => (b.estimated_ai_relevance + b.estimated_wearables_relevance) - (a.estimated_ai_relevance + a.estimated_wearables_relevance))
+  .filter(p => p.estimated_ai_relevance + p.estimated_wearables_relevance > 0)
+  .slice(0, 4);
+---
+
+<Page title="Home" description={`Exploring ${stats.totalProjects.toLocaleString()} research projects across ${stats.totalPrograms} DFG Priority Programmes — identifying AI and wearable technology relevance`}>
+  <!-- Hero -->
+  <section class="relative overflow-hidden" style="min-height: 80vh;">
+    <!-- Background decoration -->
+    <div class="absolute inset-0 overflow-hidden pointer-events-none">
+      <div class="absolute top-1/4 -left-32 w-96 h-96 rounded-full opacity-10" style="background: var(--color-primary-500); filter: blur(120px);"></div>
+      <div class="absolute bottom-1/4 -right-32 w-96 h-96 rounded-full opacity-10" style="background: var(--color-ai); filter: blur(120px);"></div>
+    </div>
+
+    <div class="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-20">
+      <div class="max-w-3xl">
+        <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium mb-6" style="background: var(--surface-1); color: var(--text-secondary); border: 1px solid var(--border);">
+          <span class="w-2 h-2 rounded-full bg-primary-500 animate-pulse"></span>
+          DFG Schwerpunktprogramme Research Landscape
+        </div>
+
+        <h1 class="text-5xl sm:text-6xl lg:text-7xl font-extrabold tracking-tight leading-[1.1]" style="color: var(--text-primary);">
+          <span class="font-mono text-primary-500">{stats.totalProjects.toLocaleString()}</span>
+          <br />Research Projects
+        </h1>
+
+        <p class="mt-6 text-xl" style="color: var(--text-secondary);">
+          Across <span class="font-semibold" style="color: var(--text-primary);">{stats.totalPrograms} Priority Programmes</span>,
+          exploring the German research landscape in AI, wearable technologies, and beyond.
+        </p>
+
+        <div class="flex flex-wrap gap-3 mt-8">
+          <a
+            href="/programs/"
+            class="inline-flex items-center px-6 py-3 rounded-lg bg-primary-500 text-white font-semibold text-sm hover:bg-primary-600 transition-colors"
+          >
+            Explore Programs
+            <svg class="ml-2 w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path d="M13 7l5 5m0 0l-5 5m5-5H6" />
+            </svg>
+          </a>
+          <a
+            href="/focus/"
+            class="inline-flex items-center px-6 py-3 rounded-lg border font-semibold text-sm transition-colors hover:border-primary-500/50"
+            style="border-color: var(--border); color: var(--text-secondary);"
+          >
+            AI & Wearables Focus
+          </a>
+          <a
+            href="/dashboard/"
+            class="inline-flex items-center px-6 py-3 rounded-lg border font-semibold text-sm transition-colors hover:border-primary-500/50"
+            style="border-color: var(--border); color: var(--text-secondary);"
+          >
+            Dashboard
+          </a>
+        </div>
+      </div>
+
+      <!-- Stats bar -->
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-6 mt-20 fade-in-up">
+        <Stat value={stats.totalProjects.toLocaleString()} label="Research Projects" />
+        <Stat value={stats.totalPrograms.toString()} label="Priority Programmes" />
+        <Stat value={stats.aiRelevant.toString()} label="AI Relevant" color="var(--color-ai)" />
+        <Stat value={stats.wearablesRelevant.toString()} label="Wearables Relevant" color="var(--color-wearables)" />
+      </div>
+    </div>
+  </section>
+
+  <!-- Featured SPPs -->
+  <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
+    <div class="fade-in-up">
+      <h2 class="text-2xl sm:text-3xl font-extrabold tracking-tight mb-2" style="color: var(--text-primary);">
+        Top-Ranked Programmes
+      </h2>
+      <p class="text-base mb-8" style="color: var(--text-secondary);">
+        Priority Programmes with highest AI and wearable technology relevance
+      </p>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+      {featured.map((program) => {
+        const shortTitle = program.title
+          .replace(/^SPP \d+:\s*/, '')
+          .replace(/^Bereich \w+ - /, '');
+        return (
+          <Card href={`/programs/${program.slug}/`} padding="lg" class="fade-in-up group">
+            <div class="flex items-center gap-2 mb-3">
+              <Badge variant="primary" size="md">{program.spp_number}</Badge>
+              <Badge>{program.wissenschaftsbereich}</Badge>
+            </div>
+            <h3 class="text-lg font-bold mb-3 group-hover:text-primary-500 transition-colors" style="color: var(--text-primary);">
+              {shortTitle}
+            </h3>
+            <p class="text-sm mb-4 line-clamp-2" style="color: var(--text-muted);">
+              {program.full_description
+                ? program.full_description.slice(0, 150) + '…'
+                : `${program.projects_count} projects starting from ${program.beginn}`}
+            </p>
+            <div class="space-y-2">
+              {program.estimated_ai_relevance > 0 && (
+                <ScoreBar score={program.estimated_ai_relevance} max={5} color="ai" label="AI" />
+              )}
+              {program.estimated_wearables_relevance > 0 && (
+                <ScoreBar score={program.estimated_wearables_relevance} max={5} color="wearables" label="Wearables" />
+              )}
+            </div>
+            <div class="mt-4 text-sm font-mono" style="color: var(--text-muted);">
+              {program.projects_count} projects
+            </div>
+          </Card>
+        );
+      })}
+    </div>
+  </section>
+
+  <!-- Scientific areas overview -->
+  <section class="border-t" style="border-color: var(--border); background: var(--surface-1);">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
+      <div class="fade-in-up text-center mb-12">
+        <h2 class="text-2xl sm:text-3xl font-extrabold tracking-tight" style="color: var(--text-primary);">
+          Research Landscape
+        </h2>
+        <p class="mt-3 text-base" style="color: var(--text-secondary);">
+          Spanning multiple scientific domains
+        </p>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 fade-in-up">
+        {stats.wissenschaftsbereiche.map((wb) => {
+          const count = programs.filter(p => p.wissenschaftsbereich === wb).length;
+          const projectCount = programs
+            .filter(p => p.wissenschaftsbereich === wb)
+            .reduce((s, p) => s + p.projects_count, 0);
+          return (
+            <Card>
+              <div class="text-sm font-medium mb-1" style="color: var(--text-primary);">{wb}</div>
+              <div class="text-2xl font-bold font-mono text-primary-500">{count}</div>
+              <div class="text-xs mt-1" style="color: var(--text-muted);">{projectCount} projects</div>
+            </Card>
+          );
+        })}
+      </div>
+    </div>
+  </section>
+</Page>

@@ -1,0 +1,25 @@
+---
+interface Props {
+  variant?: 'default' | 'ai' | 'wearables' | 'primary' | 'info';
+  size?: 'sm' | 'md';
+}
+
+const { variant = 'default', size = 'sm' } = Astro.props;
+
+const colors = {
+  default: 'bg-[var(--surface-2)] text-[var(--text-secondary)]',
+  ai: 'bg-[var(--color-ai-dim)] text-[var(--color-ai)]',
+  wearables: 'bg-[var(--color-wearables-dim)] text-[var(--color-wearables)]',
+  primary: 'bg-primary-500/10 text-primary-500',
+  info: 'bg-blue-500/10 text-blue-400',
+};
+
+const sizes = {
+  sm: 'px-2 py-0.5 text-xs',
+  md: 'px-3 py-1 text-sm',
+};
+---
+
+<span class:list={['inline-flex items-center rounded-full font-medium', colors[variant], sizes[size]]}>
+  <slot />
+</span>

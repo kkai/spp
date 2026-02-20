@@ -1,0 +1,102 @@
+<script>
+  import { filterProjects, paginate, renderPagination, renderProjectCard, readUrlState, writeUrlState, PAGE_SIZE } from '../../scripts/projectFilter';
+  import type { ProjectData, FilterState } from '../../scripts/projectFilter';
+
+  function initSppFilter() {
+    const dataEl = document.getElementById('project-data');
+    const listEl = document.getElementById('project-list');
+    const paginationEl = document.getElementById('pagination-nav');
+    const searchInput = document.getElementById('search-input') as HTMLInputElement;
+    const scoreFilter = document.getElementById('score-filter') as HTMLSelectElement;
+    const sortSelect = document.getElementById('sort-select') as HTMLSelectElement;
+    const resultCount = document.getElementById('result-count');
+    const projectCount = document.getElementById('project-count');
+
+    if (!dataEl || !listEl) return;
+
+    const allProjects: ProjectData[] = JSON.parse(dataEl.textContent || '[]');
+
+    const state: FilterState = {
+      q: '',
+      score: 0,
+      sort: 'score',
+      page: 1,
+      spp: '',
+      tab: '',
+      ...readUrlState(),
+    };
+
+    // Restore UI from URL state
+    if (searchInput && state.q) searchInput.value = state.q;
+    if (scoreFilter && state.score > 0) scoreFilter.value = String(state.score);
+    if (sortSelect && state.sort !== 'score') sortSelect.value = state.sort;
+
+    function render() {
+      const filtered = filterProjects(allProjects, state);
+      const paged = paginate(filtered, state.page);
+
+      // Update count display
+      if (resultCount) {
+        resultCount.textContent = filtered.length === allProjects.length
+          ? `${allProjects.length} projects`
+          : `Showing ${filtered.length} of ${allProjects.length}`;
+      }
+      if (projectCount) {
+        projectCount.textContent = filtered.length === allProjects.length
+          ? `(${allProjects.length})`
+          : `(${filtered.length} of ${allProjects.length})`;
+      }
+
+      // Render cards
+      listEl!.innerHTML = paged.length > 0
+        ? paged.map((p) => renderProjectCard(p)).join('')
+        : `<p class="text-sm p-6 text-center" style="color: var(--text-muted);">No projects match your filters.</p>`;
+
+      // Render pagination
+      if (paginationEl) {
+        paginationEl.innerHTML = renderPagination(filtered.length, state.page);
+      }
+
+      writeUrlState(state);
+    }
+
+    // Event listeners
+    let debounceTimer: ReturnType<typeof setTimeout>;
+    searchInput?.addEventListener('input', () => {
+      clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => {
+        state.q = searchInput.value.trim();
+        state.page = 1;
+        render();
+      }, 150);
+    });
+
+    scoreFilter?.addEventListener('change', () => {
+      state.score = parseFloat(scoreFilter.value);
+      state.page = 1;
+      render();
+    });
+
+    sortSelect?.addEventListener('change', () => {
+      state.sort = sortSelect.value;
+      state.page = 1;
+      render();
+    });
+
+    // Pagination clicks (delegated)
+    paginationEl?.addEventListener('click', (e) => {
+      const btn = (e.target as HTMLElement).closest('[data-page]') as HTMLElement;
+      if (!btn || btn.hasAttribute('disabled')) return;
+      state.page = parseInt(btn.dataset.page!, 10);
+      render();
+      // Scroll to top of project list
+      listEl!.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+
+    // Initial render with JS
+    render();
+  }
+
+  initSppFilter();
+  document.addEventListener('astro:after-swap', initSppFilter);
+</script>

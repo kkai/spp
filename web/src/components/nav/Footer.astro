@@ -1,0 +1,18 @@
+---
+import { loadStats } from '../../data/loader';
+
+const stats = loadStats();
+---
+
+<footer class="border-t mt-24 py-12" style="border-color: var(--border);">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="flex flex-col sm:flex-row items-center justify-between gap-4">
+      <p class="text-sm" style="color: var(--text-muted);">
+        DFG Schwerpunktprogramme Explorer — Data from <a href="https://gepris.dfg.de" class="text-primary-500 hover:underline" target="_blank" rel="noopener">GEPRIS</a>
+      </p>
+      <p class="text-sm" style="color: var(--text-muted);">
+        Analyzing {stats.totalProjects.toLocaleString()} projects across {stats.totalPrograms} Priority Programmes
+      </p>
+    </div>
+  </div>
+</footer>

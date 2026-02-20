@@ -1,0 +1,123 @@
+<script>
+  import { filterProjects, renderFocusCard, readUrlState, writeUrlState } from '../../scripts/projectFilter';
+  import type { ProjectData, FilterState } from '../../scripts/projectFilter';
+
+  function initFocusPage() {
+    const tabs = document.querySelectorAll<HTMLElement>('.focus-tab');
+    const aiPanel = document.getElementById('tab-ai');
+    const wearPanel = document.getElementById('tab-wearables');
+    const searchInput = document.getElementById('focus-search') as HTMLInputElement;
+    const sppFilter = document.getElementById('focus-spp-filter') as HTMLSelectElement;
+    const resultCount = document.getElementById('focus-result-count');
+
+    const aiData: ProjectData[] = JSON.parse(document.getElementById('ai-data')?.textContent || '[]');
+    const wearData: ProjectData[] = JSON.parse(document.getElementById('wear-data')?.textContent || '[]');
+    const aiSpps: string[] = JSON.parse(document.getElementById('ai-spps')?.textContent || '[]');
+    const wearSpps: string[] = JSON.parse(document.getElementById('wear-spps')?.textContent || '[]');
+
+    if (!aiPanel || !wearPanel) return;
+
+    const urlState = readUrlState();
+    let activeTab: 'ai' | 'wearables' = (urlState.tab === 'wearables') ? 'wearables' : 'ai';
+
+    const state: FilterState = {
+      q: urlState.q || '',
+      score: 0,
+      sort: 'score',
+      page: 1,
+      spp: urlState.spp || '',
+      tab: activeTab,
+    };
+
+    // Restore search from URL
+    if (searchInput && state.q) searchInput.value = state.q;
+
+    function populateSppDropdown(spps: string[]) {
+      if (!sppFilter) return;
+      // Keep first option ("All programmes")
+      while (sppFilter.options.length > 1) sppFilter.remove(1);
+      for (const spp of spps) {
+        const opt = document.createElement('option');
+        opt.value = spp;
+        opt.textContent = spp;
+        sppFilter.appendChild(opt);
+      }
+      // Restore selection
+      if (state.spp && spps.includes(state.spp)) {
+        sppFilter.value = state.spp;
+      } else {
+        sppFilter.value = '';
+        state.spp = '';
+      }
+    }
+
+    function switchTab(tab: 'ai' | 'wearables') {
+      activeTab = tab;
+      state.tab = tab;
+
+      tabs.forEach((t) => {
+        const isActive = t.dataset.tab === tab;
+        t.style.borderColor = isActive
+          ? (tab === 'ai' ? 'var(--color-ai)' : 'var(--color-wearables)')
+          : 'transparent';
+        t.style.color = isActive
+          ? (tab === 'ai' ? 'var(--color-ai)' : 'var(--color-wearables)')
+          : 'var(--text-muted)';
+      });
+
+      populateSppDropdown(tab === 'ai' ? aiSpps : wearSpps);
+      render();
+    }
+
+    function render() {
+      const data = activeTab === 'ai' ? aiData : wearData;
+      const filtered = filterProjects(data, state);
+      const panel = activeTab === 'ai' ? aiPanel! : wearPanel!;
+      const otherPanel = activeTab === 'ai' ? wearPanel! : aiPanel!;
+
+      panel.classList.remove('hidden');
+      otherPanel.classList.add('hidden');
+
+      panel.innerHTML = filtered.length > 0
+        ? filtered.map((p) => renderFocusCard(p, activeTab, p.sppSlug)).join('')
+        : `<p class="text-sm p-6 text-center" style="color: var(--text-muted);">No projects match your filters.</p>`;
+
+      if (resultCount) {
+        resultCount.textContent = filtered.length === data.length
+          ? `${data.length} projects`
+          : `Showing ${filtered.length} of ${data.length}`;
+      }
+
+      writeUrlState(state);
+    }
+
+    // Tab clicks
+    tabs.forEach((tab) => {
+      tab.addEventListener('click', () => {
+        switchTab(tab.dataset.tab as 'ai' | 'wearables');
+      });
+    });
+
+    // Search
+    let debounceTimer: ReturnType<typeof setTimeout>;
+    searchInput?.addEventListener('input', () => {
+      clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => {
+        state.q = searchInput.value.trim();
+        render();
+      }, 150);
+    });
+
+    // SPP filter
+    sppFilter?.addEventListener('change', () => {
+      state.spp = sppFilter.value;
+      render();
+    });
+
+    // Init
+    switchTab(activeTab);
+  }
+
+  initFocusPage();
+  document.addEventListener('astro:after-swap', initFocusPage);
+</script>

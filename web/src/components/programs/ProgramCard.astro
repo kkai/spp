@@ -1,0 +1,66 @@
+---
+import Card from '../ui/Card.astro';
+import Badge from '../ui/Badge.astro';
+import ScoreBar from '../ui/ScoreBar.astro';
+import type { SPPProgram } from '../../data/types';
+
+interface Props {
+  program: SPPProgram;
+}
+
+const { program } = Astro.props;
+
+const shortTitle = program.title
+  .replace(/^SPP \d+:\s*/, '')
+  .replace(/^Bereich \w+ - /, '');
+
+const wissBereich = program.wissenschaftsbereich;
+const bereichColors: Record<string, string> = {
+  Naturwissenschaften: 'primary',
+  Ingenieurwissenschaften: 'info',
+  Lebenswissenschaften: 'ai',
+  Geistes: 'wearables',
+};
+const bereichVariant = Object.entries(bereichColors).find(([k]) => wissBereich.startsWith(k))?.[1] || 'default';
+
+const hasAI = program.estimated_ai_relevance > 0;
+const hasWearables = program.estimated_wearables_relevance > 0;
+---
+
+<Card href={`/programs/${program.slug}/`} class="flex flex-col gap-4 group" data-category={program.variante} data-wiss={wissBereich} data-ai={hasAI} data-wearables={hasWearables}>
+  <div class="flex items-start justify-between gap-2">
+    <Badge variant={bereichVariant as any} size="sm">{program.spp_number}</Badge>
+    <span class="text-xs font-mono tabular-nums" style="color: var(--text-muted);">
+      {program.projects_count} projects
+    </span>
+  </div>
+
+  <h3 class="text-base font-semibold leading-snug line-clamp-2 group-hover:text-primary-500 transition-colors" style="color: var(--text-primary);">
+    {shortTitle}
+    {program.website && (
+      <a href={program.website} target="_blank" rel="noopener" class="inline-block ml-1 align-middle" style="color: var(--text-muted);" title="Program Homepage" onclick="event.stopPropagation();">
+        <svg class="w-3.5 h-3.5 inline" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path d="M12 21a9 9 0 100-18 9 9 0 000 18z" />
+          <path d="M3.6 9h16.8M3.6 15h16.8M12 3a15 15 0 014 9 15 15 0 01-4 9 15 15 0 01-4-9 15 15 0 014-9z" />
+        </svg>
+      </a>
+    )}
+  </h3>
+
+  <div class="flex flex-wrap gap-1.5 mt-auto">
+    {hasAI && <Badge variant="ai">AI</Badge>}
+    {hasWearables && <Badge variant="wearables">Wearables</Badge>}
+    <Badge>{program.beginn}</Badge>
+  </div>
+
+  {(program.estimated_ai_relevance > 0 || program.estimated_wearables_relevance > 0) && (
+    <div class="space-y-2 pt-2 border-t" style="border-color: var(--border);">
+      {program.estimated_ai_relevance > 0 && (
+        <ScoreBar score={program.estimated_ai_relevance} max={5} color="ai" label="AI" />
+      )}
+      {program.estimated_wearables_relevance > 0 && (
+        <ScoreBar score={program.estimated_wearables_relevance} max={5} color="wearables" label="Wearables" />
+      )}
+    </div>
+  )}
+</Card>

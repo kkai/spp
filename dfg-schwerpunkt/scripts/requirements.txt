@@ -1,0 +1,15 @@
+# Web scraping
+playwright>=1.55.0
+beautifulsoup4>=4.12.3
+lxml>=5.1.0
+playwright-stealth>=0.1.0
+
+# Data processing (already available in environment but listing for completeness)
+pandas>=2.0.0
+numpy>=1.24.0
+
+# HTTP requests (fallback)
+requests==2.31.0
+
+# User agent rotation
+fake-useragent>=1.4.0

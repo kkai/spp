@@ -1,0 +1,17 @@
+---
+interface Props {
+  variant?: 'ai' | 'wearables' | 'default';
+}
+
+const { variant = 'default' } = Astro.props;
+
+const styles = {
+  default: 'bg-[var(--surface-2)] text-[var(--text-secondary)]',
+  ai: 'bg-[var(--color-ai-dim)] text-[var(--color-ai)] border border-[var(--color-ai)]/20',
+  wearables: 'bg-[var(--color-wearables-dim)] text-[var(--color-wearables)] border border-[var(--color-wearables)]/20',
+};
+---
+
+<span class:list={['inline-block px-2 py-0.5 rounded text-xs font-mono', styles[variant]]}>
+  <slot />
+</span>

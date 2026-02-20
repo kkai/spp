@@ -1,0 +1,277 @@
+---
+import Page from '../../layouts/Page.astro';
+import Card from '../../components/ui/Card.astro';
+import Badge from '../../components/ui/Badge.astro';
+import Tag from '../../components/ui/Tag.astro';
+import ScoreBar from '../../components/ui/ScoreBar.astro';
+import FocusFilterInit from '../../components/filters/FocusFilterInit.astro';
+import { loadAIProjects, loadWearablesProjects, loadPrograms } from '../../data/loader';
+import type { Project } from '../../data/types';
+
+const aiProjects = loadAIProjects().sort((a, b) => b.ai_score - a.ai_score);
+const wearablesProjects = loadWearablesProjects().sort((a, b) => b.wearables_score - a.wearables_score);
+
+const programs = loadPrograms();
+const programMap = new Map(programs.map(p => [p.spp_number, p]));
+
+// Unique SPP numbers per tab for the filter dropdowns
+const aiSpps = [...new Set(aiProjects.map(p => p.spp_number))].sort();
+const wearSpps = [...new Set(wearablesProjects.map(p => p.spp_number))].sort();
+
+// Serialize project data for client-side filtering
+function serializeProjects(projects: Project[]) {
+  return projects.map((p) => ({
+    id: p.project_id,
+    title: p.title,
+    pi: p.principal_investigator,
+    keywords: p.keywords,
+    funding: p.funding_period,
+    url: p.url,
+    ai: p.ai_score,
+    wear: p.wearables_score,
+    combined: p.combined_score,
+    aiKw: p.matched_ai_keywords,
+    wearKw: p.matched_wearables_keywords,
+    abstract: (p.abstract || p.description || '').slice(0, 300),
+    subjectArea: p.subject_area || '',
+    dfgClass: (p.dfg_classification || '').slice(0, 100),
+    spp: p.spp_number,
+    sppSlug: programMap.get(p.spp_number)?.slug || '',
+  }));
+}
+
+function getKeywords(kw: string, limit = 5): string[] {
+  if (!kw) return [];
+  return kw.split(/[,;]/).map((k: string) => k.trim()).filter(Boolean).slice(0, limit);
+}
+function extraKeywordCount(kw: string, limit = 5): number {
+  if (!kw) return 0;
+  const total = kw.split(/[,;]/).map((k: string) => k.trim()).filter(Boolean).length;
+  return Math.max(0, total - limit);
+}
+---
+
+<Page title="AI & Wearables Focus">
+  <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+    <div class="mb-10">
+      <h1 class="text-3xl sm:text-4xl font-extrabold tracking-tight" style="color: var(--text-primary);">
+        AI & Wearables Focus
+      </h1>
+      <p class="mt-3 text-lg" style="color: var(--text-secondary);">
+        Projects identified as relevant to AI and wearable technologies through keyword analysis
+      </p>
+    </div>
+
+    <!-- Tabs -->
+    <div class="flex gap-2 mb-6 border-b" style="border-color: var(--border);" id="focus-tabs">
+      <button
+        class="focus-tab px-4 py-3 text-sm font-medium border-b-2 transition-colors"
+        data-tab="ai"
+        style="border-color: var(--color-ai); color: var(--color-ai);"
+      >
+        AI Relevant ({aiProjects.length})
+      </button>
+      <button
+        class="focus-tab px-4 py-3 text-sm font-medium border-b-2 transition-colors"
+        data-tab="wearables"
+        style="border-color: transparent; color: var(--text-muted);"
+      >
+        Wearables ({wearablesProjects.length})
+      </button>
+    </div>
+
+    <!-- Filter bar (shared, content updated per tab) -->
+    <div class="flex flex-col sm:flex-row gap-3 mb-6 p-4 rounded-xl border" style="background: var(--surface-1); border-color: var(--border);" id="focus-filter-bar">
+      <div class="flex-1">
+        <input
+          type="search"
+          id="focus-search"
+          placeholder="Search projects..."
+          class="w-full px-3 py-2 rounded-lg border text-sm"
+          style="background: var(--surface-0); border-color: var(--border); color: var(--text-primary);"
+        />
+      </div>
+      <select id="focus-spp-filter" class="px-3 py-2 rounded-lg border text-sm" style="background: var(--surface-0); border-color: var(--border); color: var(--text-primary);">
+        <option value="">All programmes</option>
+      </select>
+      <span id="focus-result-count" class="text-sm self-center whitespace-nowrap" style="color: var(--text-muted);"></span>
+    </div>
+
+    <!-- Embedded data -->
+    <script type="application/json" id="ai-data" set:html={JSON.stringify(serializeProjects(aiProjects))}></script>
+    <script type="application/json" id="wear-data" set:html={JSON.stringify(serializeProjects(wearablesProjects))}></script>
+    <script type="application/json" id="ai-spps" set:html={JSON.stringify(aiSpps)}></script>
+    <script type="application/json" id="wear-spps" set:html={JSON.stringify(wearSpps)}></script>
+
+    <!-- AI Projects (server-rendered fallback) -->
+    <div id="tab-ai" class="space-y-4">
+      {aiProjects.map((project) => {
+        const prog = programMap.get(project.spp_number);
+        return (
+          <Card padding="md">
+            <div class="flex flex-col sm:flex-row gap-4">
+              <div class="flex-1 min-w-0">
+                <div class="flex flex-wrap items-center gap-2 mb-2">
+                  <Badge variant="ai">AI Score: {project.ai_score.toFixed(1)}</Badge>
+                  {prog && (
+                    <a
+                      href={`/programs/${prog.slug}/`}
+                      class="text-xs text-primary-500 hover:underline"
+                    >
+                      {project.spp_number}
+                    </a>
+                  )}
+                  {project.funding_period && (
+                    <span class="text-xs" style="color: var(--text-muted);">{project.funding_period}</span>
+                  )}
+                </div>
+
+                <a
+                  href={project.url}
+                  target="_blank"
+                  rel="noopener"
+                  class="text-base font-semibold hover:text-primary-500 transition-colors"
+                  style="color: var(--text-primary);"
+                >
+                  {project.title}
+                </a>
+
+                {project.principal_investigator && (
+                  <p class="text-sm mt-1" style="color: var(--text-secondary);">
+                    {project.principal_investigator}
+                  </p>
+                )}
+
+                {(project.description || project.abstract) && (
+                  <p class="text-sm mt-2 line-clamp-3" style="color: var(--text-muted);">
+                    {(project.description || project.abstract).slice(0, 300)}
+                    {(project.description || project.abstract).length > 300 && '…'}
+                  </p>
+                )}
+
+                {project.matched_ai_keywords && (
+                  <div class="flex flex-wrap gap-1 mt-3">
+                    {project.matched_ai_keywords.split(',').map((kw: string) => (
+                      <Tag variant="ai">{kw.trim()}</Tag>
+                    ))}
+                  </div>
+                )}
+                {getKeywords(project.keywords).length > 0 && (
+                  <div class="flex flex-wrap gap-1 mt-2">
+                    {getKeywords(project.keywords).map((kw) => (
+                      <Tag>{kw}</Tag>
+                    ))}
+                    {extraKeywordCount(project.keywords) > 0 && (
+                      <span class="text-xs" style="color: var(--text-muted);">+{extraKeywordCount(project.keywords)} more</span>
+                    )}
+                  </div>
+                )}
+                {project.url && (
+                  <a href={project.url} target="_blank" rel="noopener"
+                     class="inline-flex items-center gap-1 text-xs mt-2 text-primary-500 hover:underline">
+                    GEPRIS ↗
+                  </a>
+                )}
+              </div>
+
+              <div class="shrink-0 w-32">
+                <ScoreBar score={project.ai_score} max={10} color="ai" label="AI" />
+                {project.wearables_score > 0 && (
+                  <div class="mt-2">
+                    <ScoreBar score={project.wearables_score} max={10} color="wearables" label="Wear." />
+                  </div>
+                )}
+              </div>
+            </div>
+          </Card>
+        );
+      })}
+    </div>
+
+    <!-- Wearables Projects (server-rendered fallback) -->
+    <div id="tab-wearables" class="space-y-4 hidden">
+      {wearablesProjects.map((project) => {
+        const prog = programMap.get(project.spp_number);
+        return (
+          <Card padding="md">
+            <div class="flex flex-col sm:flex-row gap-4">
+              <div class="flex-1 min-w-0">
+                <div class="flex flex-wrap items-center gap-2 mb-2">
+                  <Badge variant="wearables">Wearables: {project.wearables_score.toFixed(1)}</Badge>
+                  {prog && (
+                    <a
+                      href={`/programs/${prog.slug}/`}
+                      class="text-xs text-primary-500 hover:underline"
+                    >
+                      {project.spp_number}
+                    </a>
+                  )}
+                  {project.funding_period && (
+                    <span class="text-xs" style="color: var(--text-muted);">{project.funding_period}</span>
+                  )}
+                </div>
+
+                <a
+                  href={project.url}
+                  target="_blank"
+                  rel="noopener"
+                  class="text-base font-semibold hover:text-primary-500 transition-colors"
+                  style="color: var(--text-primary);"
+                >
+                  {project.title}
+                </a>
+
+                {project.principal_investigator && (
+                  <p class="text-sm mt-1" style="color: var(--text-secondary);">
+                    {project.principal_investigator}
+                  </p>
+                )}
+
+                {(project.description || project.abstract) && (
+                  <p class="text-sm mt-2 line-clamp-3" style="color: var(--text-muted);">
+                    {(project.description || project.abstract).slice(0, 300)}
+                    {(project.description || project.abstract).length > 300 && '…'}
+                  </p>
+                )}
+
+                {project.matched_wearables_keywords && (
+                  <div class="flex flex-wrap gap-1 mt-3">
+                    {project.matched_wearables_keywords.split(',').map((kw: string) => (
+                      <Tag variant="wearables">{kw.trim()}</Tag>
+                    ))}
+                  </div>
+                )}
+                {getKeywords(project.keywords).length > 0 && (
+                  <div class="flex flex-wrap gap-1 mt-2">
+                    {getKeywords(project.keywords).map((kw) => (
+                      <Tag>{kw}</Tag>
+                    ))}
+                    {extraKeywordCount(project.keywords) > 0 && (
+                      <span class="text-xs" style="color: var(--text-muted);">+{extraKeywordCount(project.keywords)} more</span>
+                    )}
+                  </div>
+                )}
+                {project.url && (
+                  <a href={project.url} target="_blank" rel="noopener"
+                     class="inline-flex items-center gap-1 text-xs mt-2 text-primary-500 hover:underline">
+                    GEPRIS ↗
+                  </a>
+                )}
+              </div>
+
+              <div class="shrink-0 w-32">
+                <ScoreBar score={project.wearables_score} max={10} color="wearables" label="Wear." />
+                {project.ai_score > 0 && (
+                  <div class="mt-2">
+                    <ScoreBar score={project.ai_score} max={10} color="ai" label="AI" />
+                  </div>
+                )}
+              </div>
+            </div>
+          </Card>
+        );
+      })}
+    </div>
+    <FocusFilterInit />
+  </section>
+</Page>

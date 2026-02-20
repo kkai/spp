@@ -1,0 +1,63 @@
+---
+import { ViewTransitions } from 'astro:transitions';
+import PasswordGate from '../components/PasswordGate.astro';
+import '../styles/global.css';
+
+interface Props {
+  title: string;
+  description?: string;
+}
+
+const { title, description = 'Exploring 2,259 research projects across 20 DFG Priority Programmes' } = Astro.props;
+---
+
+<!doctype html>
+<html lang="en" class="dark">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content={description} />
+    <title>{title} | DFG SPP Explorer</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <ViewTransitions />
+  </head>
+  <body class="min-h-screen">
+    <PasswordGate />
+    <slot />
+    <script>
+      // Dark mode toggle
+      function initTheme() {
+        const saved = localStorage.getItem('theme');
+        if (saved === 'light') {
+          document.documentElement.classList.add('light');
+          document.documentElement.classList.remove('dark');
+        }
+      }
+      initTheme();
+      document.addEventListener('astro:after-swap', initTheme);
+
+      // Scroll-triggered fade-in
+      function initScrollFade() {
+        const observer = new IntersectionObserver(
+          (entries) => {
+            entries.forEach((e) => {
+              if (e.isIntersecting) {
+                e.target.classList.add('visible');
+                observer.unobserve(e.target);
+              }
+            });
+          },
+          { threshold: 0.1 }
+        );
+        document.querySelectorAll('.fade-in-up').forEach((el) => observer.observe(el));
+      }
+      initScrollFade();
+      document.addEventListener('astro:after-swap', initScrollFade);
+    </script>
+  </body>
+</html>

@@ -1,0 +1,343 @@
+---
+import Page from '../../layouts/Page.astro';
+import Card from '../../components/ui/Card.astro';
+import Stat from '../../components/ui/Stat.astro';
+import { loadPrograms, loadAllProjects, loadAIProjects, loadWearablesProjects } from '../../data/loader';
+import TopicGraph from '../../components/viz/TopicGraph.astro';
+
+const programs = loadPrograms();
+const allProjects = loadAllProjects();
+const aiProjects = loadAIProjects();
+const wearablesProjects = loadWearablesProjects();
+
+// Projects per SPP (sorted by count)
+const projectsPerSPP = programs
+  .map(p => ({ label: p.spp_number, value: p.projects_count, title: p.title.replace(/^SPP \d+:\s*/, '').replace(/^Bereich \w+ - /, '').slice(0, 40) }))
+  .sort((a, b) => b.value - a.value);
+
+const maxProjectCount = Math.max(...projectsPerSPP.map(p => p.value));
+
+// Scientific area distribution
+const areaDistribution = new Map<string, number>();
+for (const p of programs) {
+  const wb = p.wissenschaftsbereich || 'Unknown';
+  areaDistribution.set(wb, (areaDistribution.get(wb) || 0) + p.projects_count);
+}
+const areaData = [...areaDistribution.entries()].sort((a, b) => b[1] - a[1]);
+const totalAreaProjects = areaData.reduce((s, [, v]) => s + v, 0);
+
+const areaColors: Record<string, string> = {
+  Naturwissenschaften: '#14b8a6',
+  Ingenieurwissenschaften: '#3b82f6',
+  Lebenswissenschaften: '#8b5cf6',
+  'Geistes- und Sozialwissenschaften': '#f59e0b',
+};
+
+// Score distribution
+const scoreBuckets = [0, 0.5, 1, 1.5, 2, 3, 4, 5, 7, 10];
+const aiScoreDistribution = scoreBuckets.slice(0, -1).map((min, i) => {
+  const max = scoreBuckets[i + 1];
+  const count = allProjects.filter(p => p.ai_score >= min && p.ai_score < max).length;
+  return { range: `${min}-${max}`, count };
+}).filter(b => b.count > 0);
+
+// Top AI projects
+const topAI = [...aiProjects].sort((a, b) => b.ai_score - a.ai_score).slice(0, 10);
+const topWearables = [...wearablesProjects].sort((a, b) => b.wearables_score - a.wearables_score).slice(0, 10);
+
+// Funding timeline data
+const timelineData = programs.map(p => {
+  const startMatch = p.beginn || p.funding_start;
+  const start = parseInt(startMatch) || 2000;
+  const endMatch = p.funding_end?.match(/\d{4}/);
+  const end = endMatch ? parseInt(endMatch[0]) : 2026;
+  return { spp: p.spp_number, start, end, title: p.title.replace(/^SPP \d+:\s*/, '').replace(/^Bereich \w+ - /, '').slice(0, 50) };
+}).sort((a, b) => a.start - b.start);
+
+// Topic graph data
+const graphData = buildGraphData(programs);
+
+function buildGraphData(progs: typeof programs) {
+  const nodes: Array<{ id: string; label: string; type: string; size: number }> = [];
+  const edges: Array<{ source: string; target: string; weight: number }> = [];
+  const keywordMap = new Map<string, Set<string>>();
+
+  for (const p of progs) {
+    nodes.push({
+      id: p.spp_number,
+      label: p.spp_number,
+      type: 'spp',
+      size: Math.max(30, Math.min(60, p.projects_count / 3)),
+    });
+
+    // Extract keywords from projects
+    for (const proj of p.projects) {
+      const keywords = [
+        ...(proj.matched_ai_keywords || '').split(','),
+        ...(proj.matched_wearables_keywords || '').split(','),
+      ]
+        .map(k => k.trim().toLowerCase())
+        .filter(k => k.length > 2);
+
+      for (const kw of keywords) {
+        if (!keywordMap.has(kw)) keywordMap.set(kw, new Set());
+        keywordMap.get(kw)!.add(p.spp_number);
+      }
+    }
+
+    // Use wissenschaftsbereich as topic cluster
+    const topic = p.wissenschaftsbereich;
+    const topicId = `topic-${topic}`;
+    if (!nodes.find(n => n.id === topicId)) {
+      nodes.push({ id: topicId, label: topic, type: 'topic', size: 45 });
+    }
+    edges.push({ source: p.spp_number, target: topicId, weight: p.projects_count });
+  }
+
+  // Add keyword nodes that connect multiple SPPs
+  for (const [kw, spps] of keywordMap) {
+    if (spps.size >= 2) {
+      const kwId = `kw-${kw}`;
+      nodes.push({ id: kwId, label: kw, type: 'keyword', size: 15 + spps.size * 5 });
+      for (const spp of spps) {
+        edges.push({ source: spp, target: kwId, weight: 1 });
+      }
+    }
+  }
+
+  return { nodes, edges };
+}
+---
+
+<Page title="Dashboard">
+  <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+    <div class="mb-10">
+      <h1 class="text-3xl sm:text-4xl font-extrabold tracking-tight" style="color: var(--text-primary);">
+        Dashboard
+      </h1>
+      <p class="mt-3 text-lg" style="color: var(--text-secondary);">
+        Statistics and visualizations across the research landscape
+      </p>
+    </div>
+
+    <!-- Summary stats -->
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-12 fade-in-up">
+      <Card><Stat value={allProjects.length.toLocaleString()} label="Total Projects" /></Card>
+      <Card><Stat value={programs.length.toString()} label="Programmes" /></Card>
+      <Card><Stat value={aiProjects.length.toString()} label="AI Relevant" color="var(--color-ai)" /></Card>
+      <Card><Stat value={wearablesProjects.length.toString()} label="Wearables" color="var(--color-wearables)" /></Card>
+    </div>
+
+    <!-- Projects per SPP bar chart -->
+    <Card class="mb-8 fade-in-up">
+      <h2 class="text-lg font-bold mb-6" style="color: var(--text-primary);">Projects by Programme</h2>
+      <div class="space-y-2">
+        {projectsPerSPP.map(({ label, value, title }) => (
+          <div class="flex items-center gap-3 group">
+            <a
+              href={`/programs/${label.replace(/\s+/g, '-').toLowerCase()}/`}
+              class="text-xs font-mono w-16 shrink-0 text-primary-500 hover:underline"
+            >
+              {label}
+            </a>
+            <div class="flex-1 h-6 rounded overflow-hidden relative" style="background: var(--surface-2);">
+              <div
+                class="h-full rounded bg-primary-500/80 score-bar-fill flex items-center"
+                style={`width: ${(value / maxProjectCount) * 100}%`}
+              >
+                <span class="text-xs font-mono text-white px-2">{value}</span>
+              </div>
+            </div>
+            <span class="text-xs hidden sm:block truncate w-40" style="color: var(--text-muted);" title={title}>
+              {title}
+            </span>
+          </div>
+        ))}
+      </div>
+    </Card>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+      <!-- Scientific area donut -->
+      <Card class="fade-in-up">
+        <h2 class="text-lg font-bold mb-6" style="color: var(--text-primary);">Scientific Areas</h2>
+        <div class="flex items-center gap-8">
+          <!-- Simple donut via SVG -->
+          <svg viewBox="0 0 120 120" class="w-40 h-40 shrink-0">
+            {(() => {
+              let offset = 0;
+              return areaData.map(([area, count]) => {
+                const pct = count / totalAreaProjects;
+                const dashArray = `${pct * 314} ${314 - pct * 314}`;
+                const dashOffset = -offset * 314;
+                offset += pct;
+                const color = areaColors[area] || '#64748b';
+                return (
+                  <circle
+                    cx="60" cy="60" r="50"
+                    fill="none"
+                    stroke={color}
+                    stroke-width="20"
+                    stroke-dasharray={dashArray}
+                    stroke-dashoffset={dashOffset}
+                    transform="rotate(-90 60 60)"
+                  />
+                );
+              });
+            })()}
+            <text x="60" y="56" text-anchor="middle" fill="var(--text-primary)" font-size="16" font-weight="bold" font-family="var(--font-mono)">
+              {totalAreaProjects}
+            </text>
+            <text x="60" y="72" text-anchor="middle" fill="var(--text-muted)" font-size="8">
+              projects
+            </text>
+          </svg>
+          <div class="space-y-3">
+            {areaData.map(([area, count]) => (
+              <div class="flex items-center gap-2">
+                <span
+                  class="w-3 h-3 rounded-full shrink-0"
+                  style={`background: ${areaColors[area] || '#64748b'}`}
+                />
+                <span class="text-sm flex-1" style="color: var(--text-secondary);">{area}</span>
+                <span class="text-sm font-mono" style="color: var(--text-muted);">{count}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </Card>
+
+      <!-- Score distribution -->
+      <Card class="fade-in-up">
+        <h2 class="text-lg font-bold mb-6" style="color: var(--text-primary);">AI Score Distribution</h2>
+        <div class="flex items-end gap-1 h-40">
+          {aiScoreDistribution.map(({ range, count }) => {
+            const maxCount = Math.max(...aiScoreDistribution.map(b => b.count));
+            const height = maxCount > 0 ? (count / maxCount) * 100 : 0;
+            return (
+              <div class="flex-1 flex flex-col items-center justify-end" title={`${range}: ${count} projects`}>
+                <span class="text-xs font-mono mb-1" style="color: var(--text-muted);">{count}</span>
+                <div
+                  class="w-full rounded-t"
+                  style={`height: ${height}%; background: var(--color-ai); opacity: ${0.4 + (count / maxCount) * 0.6};`}
+                />
+                <span class="text-xs mt-1 font-mono" style="color: var(--text-muted);">{range.split('-')[0]}</span>
+              </div>
+            );
+          })}
+        </div>
+      </Card>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+      <!-- Top AI projects (lollipop) -->
+      <Card class="fade-in-up">
+        <h2 class="text-lg font-bold mb-6" style="color: var(--text-primary);">Top AI Projects</h2>
+        <div class="space-y-3">
+          {topAI.map((p) => (
+            <div class="flex items-center gap-3">
+              <div class="flex-1 min-w-0">
+                <a href={p.url} target="_blank" rel="noopener" class="text-xs hover:text-primary-500 truncate block" style="color: var(--text-secondary);" title={p.title}>
+                  {p.title.slice(0, 60)}{p.title.length > 60 ? '…' : ''}
+                </a>
+              </div>
+              <div class="flex items-center gap-2 shrink-0">
+                <div class="w-20 h-1.5 rounded-full overflow-hidden" style="background: var(--surface-2);">
+                  <div class="h-full rounded-full" style={`width: ${(p.ai_score / 10) * 100}%; background: var(--color-ai);`} />
+                </div>
+                <span class="text-xs font-mono w-8 text-right" style="color: var(--color-ai);">
+                  {p.ai_score.toFixed(1)}
+                </span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </Card>
+
+      <!-- Top wearables projects -->
+      <Card class="fade-in-up">
+        <h2 class="text-lg font-bold mb-6" style="color: var(--text-primary);">Top Wearables Projects</h2>
+        <div class="space-y-3">
+          {topWearables.map((p) => (
+            <div class="flex items-center gap-3">
+              <div class="flex-1 min-w-0">
+                <a href={p.url} target="_blank" rel="noopener" class="text-xs hover:text-primary-500 truncate block" style="color: var(--text-secondary);" title={p.title}>
+                  {p.title.slice(0, 60)}{p.title.length > 60 ? '…' : ''}
+                </a>
+              </div>
+              <div class="flex items-center gap-2 shrink-0">
+                <div class="w-20 h-1.5 rounded-full overflow-hidden" style="background: var(--surface-2);">
+                  <div class="h-full rounded-full" style={`width: ${(p.wearables_score / 10) * 100}%; background: var(--color-wearables);`} />
+                </div>
+                <span class="text-xs font-mono w-8 text-right" style="color: var(--color-wearables);">
+                  {p.wearables_score.toFixed(1)}
+                </span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </Card>
+    </div>
+
+    <!-- Funding timeline -->
+    <Card class="mb-8 fade-in-up">
+      <h2 class="text-lg font-bold mb-6" style="color: var(--text-primary);">Funding Timeline</h2>
+      <div id="timeline-container" class="overflow-x-auto">
+        <div class="min-w-[600px]" style="height: 400px;">
+          {(() => {
+            const minYear = Math.min(...timelineData.map(d => d.start));
+            const maxYear = Math.max(...timelineData.map(d => d.end));
+            const yearRange = maxYear - minYear + 2;
+            const barHeight = 18;
+            const gap = 4;
+            const totalHeight = timelineData.length * (barHeight + gap);
+            const leftMargin = 70;
+
+            return (
+              <svg viewBox={`0 0 800 ${Math.max(totalHeight + 40, 300)}`} class="w-full h-full">
+                {/* Year grid lines */}
+                {Array.from({ length: yearRange }, (_, i) => minYear + i).filter(y => y % 5 === 0).map(year => {
+                  const x = leftMargin + ((year - minYear) / yearRange) * (800 - leftMargin - 20);
+                  return (
+                    <>
+                      <line x1={x} y1="0" x2={x} y2={totalHeight} stroke="var(--surface-2)" stroke-width="1" />
+                      <text x={x} y={totalHeight + 16} text-anchor="middle" fill="var(--text-muted)" font-size="10" font-family="var(--font-mono)">{year}</text>
+                    </>
+                  );
+                })}
+
+                {/* Timeline bars */}
+                {timelineData.map((d, i) => {
+                  const y = i * (barHeight + gap);
+                  const x1 = leftMargin + ((d.start - minYear) / yearRange) * (800 - leftMargin - 20);
+                  const x2 = leftMargin + ((d.end - minYear) / yearRange) * (800 - leftMargin - 20);
+                  const width = Math.max(x2 - x1, 2);
+                  return (
+                    <>
+                      <text x={leftMargin - 4} y={y + barHeight / 2 + 4} text-anchor="end" fill="var(--text-secondary)" font-size="9" font-family="var(--font-mono)">{d.spp}</text>
+                      <rect x={x1} y={y} width={width} height={barHeight} rx="3" fill="var(--color-primary-500)" opacity="0.7">
+                        <title>{`${d.spp}: ${d.title} (${d.start}–${d.end})`}</title>
+                      </rect>
+                    </>
+                  );
+                })}
+              </svg>
+            );
+          })()}
+        </div>
+      </div>
+    </Card>
+
+    <!-- Topic graph -->
+    <Card class="fade-in-up">
+      <div class="flex items-center justify-between mb-6">
+        <h2 class="text-lg font-bold" style="color: var(--text-primary);">Topic Network</h2>
+        <div class="flex gap-4 text-xs" style="color: var(--text-muted);">
+          <span class="flex items-center gap-1"><span class="w-3 h-3 rounded-full bg-primary-500"></span> SPP</span>
+          <span class="flex items-center gap-1"><span class="w-3 h-3 rounded-full" style="background: var(--color-ai);"></span> Topic</span>
+          <span class="flex items-center gap-1"><span class="w-3 h-3 rounded-full" style="background: #94a3b8;"></span> Keyword</span>
+        </div>
+      </div>
+      <TopicGraph graphData={graphData} />
+    </Card>
+  </section>
+</Page>
