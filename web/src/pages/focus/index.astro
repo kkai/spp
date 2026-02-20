@@ -115,7 +115,7 @@ function extraKeywordCount(kw: string, limit = 5): number {
                   <Badge variant="ai">AI Score: {project.ai_score.toFixed(1)}</Badge>
                   {prog && (
                     <a
-                      href={`/programs/${prog.slug}/`}
+                      href={`${import.meta.env.BASE_URL}programs/${prog.slug}/`}
                       class="text-xs text-primary-500 hover:underline"
                     >
                       {project.spp_number}
@@ -200,7 +200,7 @@ function extraKeywordCount(kw: string, limit = 5): number {
                   <Badge variant="wearables">Wearables: {project.wearables_score.toFixed(1)}</Badge>
                   {prog && (
                     <a
-                      href={`/programs/${prog.slug}/`}
+                      href={`${import.meta.env.BASE_URL}programs/${prog.slug}/`}
                       class="text-xs text-primary-500 hover:underline"
                     >
                       {project.spp_number}

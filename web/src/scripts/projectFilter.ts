@@ -178,7 +178,7 @@ export function renderProjectCard(p: ProjectData, options: { showSpp?: boolean }
   const scores = (aiScore || wearScore) ? `<div class="flex gap-2 shrink-0">${aiScore}${wearScore}</div>` : '';
 
   const sppLink = options.showSpp && p.sppSlug
-    ? `<a href="/programs/${escHtml(p.sppSlug)}/" class="text-xs text-[#14b8a6] hover:underline">${escHtml(p.spp)}</a>`
+    ? `<a href="${import.meta.env.BASE_URL}programs/${escHtml(p.sppSlug)}/" class="text-xs text-[#14b8a6] hover:underline">${escHtml(p.spp)}</a>`
     : '';
 
   const matchedTags = renderTags(p.aiKw, 'ai') + renderTags(p.wearKw, 'wearables');
@@ -258,7 +258,7 @@ export function renderFocusCard(p: ProjectData, type: 'ai' | 'wearables', sppSlu
       <div class="flex-1 min-w-0">
         <div class="flex flex-wrap items-center gap-2 mb-2">
           <span class="inline-flex items-center rounded-full font-medium px-2 py-0.5 text-xs" style="background: ${badgeBg}; color: ${mainColor};">${mainLabel} Score: ${mainScore.toFixed(1)}</span>
-          ${sppSlug ? `<a href="/programs/${escHtml(sppSlug)}/" class="text-xs hover:underline" style="color: #14b8a6;">${escHtml(p.spp)}</a>` : ''}
+          ${sppSlug ? `<a href="${import.meta.env.BASE_URL}programs/${escHtml(sppSlug)}/" class="text-xs hover:underline" style="color: #14b8a6;">${escHtml(p.spp)}</a>` : ''}
           ${p.funding ? `<span class="text-xs" style="color: var(--text-muted);">${escHtml(p.funding)}</span>` : ''}
         </div>
         <a href="${escHtml(p.url)}" target="_blank" rel="noopener" class="text-base font-semibold hover:text-[#14b8a6] transition-colors" style="color: var(--text-primary);">${escHtml(p.title)}</a>

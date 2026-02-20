@@ -99,7 +99,7 @@ function extraKeywordCount(kw: string, limit = 5): number {
   <!-- Breadcrumbs -->
   <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
     <Breadcrumbs crumbs={[
-      { label: 'Programs', href: '/programs/' },
+      { label: 'Programs', href: `${import.meta.env.BASE_URL}programs/` },
       { label: `${program.spp_number}: ${shortTitle}` },
     ]} />
   </div>

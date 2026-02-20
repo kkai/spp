@@ -135,7 +135,7 @@ function buildGraphData(progs: typeof programs) {
         {projectsPerSPP.map(({ label, value, title }) => (
           <div class="flex items-center gap-3 group">
             <a
-              href={`/programs/${label.replace(/\s+/g, '-').toLowerCase()}/`}
+              href={`${import.meta.env.BASE_URL}programs/${label.replace(/\s+/g, '-').toLowerCase()}/`}
               class="text-xs font-mono w-16 shrink-0 text-primary-500 hover:underline"
             >
               {label}

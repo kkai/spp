@@ -14,7 +14,7 @@ const { crumbs } = Astro.props;
 <nav aria-label="Breadcrumb" class="text-sm" style="color: var(--text-muted);">
   <ol class="flex flex-wrap items-center gap-1.5">
     <li>
-      <a href="/" class="hover:text-primary-500 transition-colors">Home</a>
+      <a href={import.meta.env.BASE_URL} class="hover:text-primary-500 transition-colors">Home</a>
     </li>
     {crumbs.map((crumb, i) => (
       <li class="flex items-center gap-1.5">

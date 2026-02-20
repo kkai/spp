@@ -27,7 +27,7 @@ const hasAI = program.estimated_ai_relevance > 0;
 const hasWearables = program.estimated_wearables_relevance > 0;
 ---
 
-<Card href={`/programs/${program.slug}/`} class="flex flex-col gap-4 group" data-category={program.variante} data-wiss={wissBereich} data-ai={hasAI} data-wearables={hasWearables}>
+<Card href={`${import.meta.env.BASE_URL}programs/${program.slug}/`} class="flex flex-col gap-4 group" data-category={program.variante} data-wiss={wissBereich} data-ai={hasAI} data-wearables={hasWearables}>
   <div class="flex items-start justify-between gap-2">
     <Badge variant={bereichVariant as any} size="sm">{program.spp_number}</Badge>
     <span class="text-xs font-mono tabular-nums" style="color: var(--text-muted);">

@@ -44,7 +44,7 @@ const featured = [...programs]
 
         <div class="flex flex-wrap gap-3 mt-8">
           <a
-            href="/programs/"
+            href={`${import.meta.env.BASE_URL}programs/`}
             class="inline-flex items-center px-6 py-3 rounded-lg bg-primary-500 text-white font-semibold text-sm hover:bg-primary-600 transition-colors"
           >
             Explore Programs
@@ -53,14 +53,14 @@ const featured = [...programs]
             </svg>
           </a>
           <a
-            href="/focus/"
+            href={`${import.meta.env.BASE_URL}focus/`}
             class="inline-flex items-center px-6 py-3 rounded-lg border font-semibold text-sm transition-colors hover:border-primary-500/50"
             style="border-color: var(--border); color: var(--text-secondary);"
           >
             AI & Wearables Focus
           </a>
           <a
-            href="/dashboard/"
+            href={`${import.meta.env.BASE_URL}dashboard/`}
             class="inline-flex items-center px-6 py-3 rounded-lg border font-semibold text-sm transition-colors hover:border-primary-500/50"
             style="border-color: var(--border); color: var(--text-secondary);"
           >
@@ -96,7 +96,7 @@ const featured = [...programs]
           .replace(/^SPP \d+:\s*/, '')
           .replace(/^Bereich \w+ - /, '');
         return (
-          <Card href={`/programs/${program.slug}/`} padding="lg" class="fade-in-up group">
+          <Card href={`${import.meta.env.BASE_URL}programs/${program.slug}/`} padding="lg" class="fade-in-up group">
             <div class="flex items-center gap-2 mb-3">
               <Badge variant="primary" size="md">{program.spp_number}</Badge>
               <Badge>{program.wissenschaftsbereich}</Badge>
