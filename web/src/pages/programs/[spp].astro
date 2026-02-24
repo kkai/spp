@@ -60,6 +60,19 @@ const topAreas = [...areaMap.entries()]
   .sort((a, b) => b[1] - a[1])
   .slice(0, 8);
 
+// Collect unique PIs with their first associated project URL
+const piMap = new Map<string, string>(); // name → project URL
+for (const p of projects) {
+  if (!p.principal_investigator) continue;
+  for (const name of p.principal_investigator.split(';')) {
+    const trimmed = name.trim();
+    if (trimmed && !piMap.has(trimmed)) {
+      piMap.set(trimmed, p.url);
+    }
+  }
+}
+const piList = [...piMap.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+
 // Serialize compact project data for client-side filtering
 const FALLBACK_COUNT = 25;
 const projectData = projects.map((p) => ({
@@ -366,6 +379,26 @@ function extraKeywordCount(kw: string, limit = 5): number {
             <a href={program.projects_url} target="_blank" rel="noopener" class="block text-sm text-primary-500 hover:underline">
               GEPRIS Projects List ↗
             </a>
+
+            {piList.length > 0 && (
+              <div class="mt-4 pt-4 border-t" style="border-color: var(--border);">
+                <details>
+                  <summary class="text-sm font-semibold cursor-pointer select-none" style="color: var(--text-primary);">
+                    Principal Investigators ({piList.length})
+                  </summary>
+                  <ul class="mt-2 space-y-1 max-h-64 overflow-y-auto">
+                    {piList.map(([name, url]) => (
+                      <li>
+                        <a href={url} target="_blank" rel="noopener"
+                           class="text-xs text-primary-500 hover:underline">
+                          {name}
+                        </a>
+                      </li>
+                    ))}
+                  </ul>
+                </details>
+              </div>
+            )}
           </div>
         </Card>
       </aside>

@@ -91,10 +91,15 @@ const currentPath = Astro.url.pathname;
     const mobileBtn = document.getElementById('mobile-menu-btn');
     const mobileMenu = document.getElementById('mobile-menu');
 
+    // Sync icon visibility with current theme
+    const isLight = document.documentElement.classList.contains('light');
+    document.querySelectorAll('.dark-icon').forEach(el => el.classList.toggle('hidden', isLight));
+    document.querySelectorAll('.light-icon').forEach(el => el.classList.toggle('hidden', !isLight));
+
     toggle?.addEventListener('click', () => {
       const html = document.documentElement;
-      const isLight = html.classList.contains('light');
-      if (isLight) {
+      const wasLight = html.classList.contains('light');
+      if (wasLight) {
         html.classList.remove('light');
         html.classList.add('dark');
         localStorage.setItem('theme', 'dark');
@@ -103,7 +108,6 @@ const currentPath = Astro.url.pathname;
         html.classList.add('light');
         localStorage.setItem('theme', 'light');
       }
-      // Toggle icons
       document.querySelectorAll('.dark-icon').forEach(el => el.classList.toggle('hidden'));
       document.querySelectorAll('.light-icon').forEach(el => el.classList.toggle('hidden'));
     });

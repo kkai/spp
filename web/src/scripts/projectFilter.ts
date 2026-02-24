@@ -146,11 +146,11 @@ function escHtml(s: string): string {
 function renderTags(kwString: string, variant: 'ai' | 'wearables'): string {
   if (!kwString) return '';
   const colors = {
-    ai: 'bg-[#3b82f620] text-[#3b82f6] border border-[#3b82f6]/20',
-    wearables: 'bg-[#f59e0b20] text-[#f59e0b] border border-[#f59e0b]/20',
+    ai: 'background: var(--color-ai-dim); color: var(--color-ai); border: 1px solid color-mix(in srgb, var(--color-ai) 20%, transparent)',
+    wearables: 'background: var(--color-wearables-dim); color: var(--color-wearables); border: 1px solid color-mix(in srgb, var(--color-wearables) 20%, transparent)',
   };
   return kwString.split(',').map((kw) =>
-    `<span class="inline-block px-2 py-0.5 rounded text-xs font-mono ${colors[variant]}">${escHtml(kw.trim())}</span>`
+    `<span class="inline-block px-2 py-0.5 rounded text-xs font-mono" style="${colors[variant]}">${escHtml(kw.trim())}</span>`
   ).join('');
 }
 
@@ -170,10 +170,10 @@ function renderKeywordTags(keywords: string, limit = 5): string {
 
 export function renderProjectCard(p: ProjectData, options: { showSpp?: boolean } = {}): string {
   const aiScore = p.ai > 0
-    ? `<span class="text-xs font-mono px-1.5 py-0.5 rounded" style="background: #3b82f620; color: #3b82f6;">AI ${p.ai.toFixed(1)}</span>`
+    ? `<span class="text-xs font-mono px-1.5 py-0.5 rounded" style="background: var(--color-ai-dim); color: var(--color-ai);">AI ${p.ai.toFixed(1)}</span>`
     : '';
   const wearScore = p.wear > 0
-    ? `<span class="text-xs font-mono px-1.5 py-0.5 rounded" style="background: #f59e0b20; color: #f59e0b;">W ${p.wear.toFixed(1)}</span>`
+    ? `<span class="text-xs font-mono px-1.5 py-0.5 rounded" style="background: var(--color-wearables-dim); color: var(--color-wearables);">W ${p.wear.toFixed(1)}</span>`
     : '';
   const scores = (aiScore || wearScore) ? `<div class="flex gap-2 shrink-0">${aiScore}${wearScore}</div>` : '';
 
@@ -199,13 +199,13 @@ export function renderProjectCard(p: ProjectData, options: { showSpp?: boolean }
   return `<div class="block rounded-xl border p-4 transition-all duration-200" style="background: var(--surface-1); border-color: var(--border);">
     <div class="flex items-start justify-between gap-3">
       <div class="flex-1 min-w-0">
-        <a href="${escHtml(p.url)}" target="_blank" rel="noopener" class="text-sm font-semibold hover:text-[#14b8a6] transition-colors line-clamp-2" style="color: var(--text-primary);">${escHtml(p.title)}</a>
+        <a href="${escHtml(p.url)}" target="_blank" rel="noopener" class="text-sm font-semibold hover:text-primary-500 transition-colors line-clamp-2" style="color: var(--text-primary);">${escHtml(p.title)}</a>
         ${p.pi ? `<p class="text-xs mt-1" style="color: var(--text-muted);">${escHtml(p.pi)}</p>` : ''}
         ${p.funding ? `<p class="text-xs mt-0.5" style="color: var(--text-muted);">${escHtml(p.funding)}</p>` : ''}
         ${sppLink ? `<p class="mt-1">${sppLink}</p>` : ''}
         ${hasTags ? `<div class="flex flex-wrap gap-1 mt-2">${matchedTags}${keywordTags}</div>` : ''}
         ${expandable}
-        ${p.url ? `<a href="${escHtml(p.url)}" target="_blank" rel="noopener" class="inline-flex items-center gap-1 text-xs mt-2 hover:underline" style="color: #14b8a6;">GEPRIS &#8599;</a>` : ''}
+        ${p.url ? `<a href="${escHtml(p.url)}" target="_blank" rel="noopener" class="inline-flex items-center gap-1 text-xs mt-2 hover:underline" style="color: var(--color-primary-500);">GEPRIS &#8599;</a>` : ''}
       </div>
       ${scores}
     </div>
@@ -217,13 +217,13 @@ export function renderProjectCard(p: ProjectData, options: { showSpp?: boolean }
 export function renderFocusCard(p: ProjectData, type: 'ai' | 'wearables', sppSlug?: string): string {
   const mainScore = type === 'ai' ? p.ai : p.wear;
   const altScore = type === 'ai' ? p.wear : p.ai;
-  const mainColor = type === 'ai' ? '#3b82f6' : '#f59e0b';
-  const altColor = type === 'ai' ? '#f59e0b' : '#3b82f6';
+  const mainColor = type === 'ai' ? 'var(--color-ai)' : 'var(--color-wearables)';
+  const altColor = type === 'ai' ? 'var(--color-wearables)' : 'var(--color-ai)';
   const mainLabel = type === 'ai' ? 'AI' : 'Wearables';
   const altLabel = type === 'ai' ? 'Wear.' : 'AI';
   const matchedKw = type === 'ai' ? p.aiKw : p.wearKw;
 
-  const badgeBg = type === 'ai' ? '#3b82f620' : '#f59e0b20';
+  const badgeBg = type === 'ai' ? 'var(--color-ai-dim)' : 'var(--color-wearables-dim)';
 
   function scoreBar(score: number, color: string, label: string, max = 10): string {
     const pct = Math.min((score / max) * 100, 100);
@@ -258,16 +258,16 @@ export function renderFocusCard(p: ProjectData, type: 'ai' | 'wearables', sppSlu
       <div class="flex-1 min-w-0">
         <div class="flex flex-wrap items-center gap-2 mb-2">
           <span class="inline-flex items-center rounded-full font-medium px-2 py-0.5 text-xs" style="background: ${badgeBg}; color: ${mainColor};">${mainLabel} Score: ${mainScore.toFixed(1)}</span>
-          ${sppSlug ? `<a href="${import.meta.env.BASE_URL}programs/${escHtml(sppSlug)}/" class="text-xs hover:underline" style="color: #14b8a6;">${escHtml(p.spp)}</a>` : ''}
+          ${sppSlug ? `<a href="${import.meta.env.BASE_URL}programs/${escHtml(sppSlug)}/" class="text-xs hover:underline" style="color: var(--color-primary-500);">${escHtml(p.spp)}</a>` : ''}
           ${p.funding ? `<span class="text-xs" style="color: var(--text-muted);">${escHtml(p.funding)}</span>` : ''}
         </div>
-        <a href="${escHtml(p.url)}" target="_blank" rel="noopener" class="text-base font-semibold hover:text-[#14b8a6] transition-colors" style="color: var(--text-primary);">${escHtml(p.title)}</a>
+        <a href="${escHtml(p.url)}" target="_blank" rel="noopener" class="text-base font-semibold hover:text-primary-500 transition-colors" style="color: var(--text-primary);">${escHtml(p.title)}</a>
         ${p.pi ? `<p class="text-sm mt-1" style="color: var(--text-secondary);">${escHtml(p.pi)}</p>` : ''}
         ${descHtml}
         ${matchedTags ? `<div class="flex flex-wrap gap-1 mt-3">${matchedTags}</div>` : ''}
         ${keywordTags ? `<div class="flex flex-wrap gap-1 mt-2">${keywordTags}</div>` : ''}
         ${expandable}
-        ${p.url ? `<a href="${escHtml(p.url)}" target="_blank" rel="noopener" class="inline-flex items-center gap-1 text-xs mt-2 hover:underline" style="color: #14b8a6;">GEPRIS &#8599;</a>` : ''}
+        ${p.url ? `<a href="${escHtml(p.url)}" target="_blank" rel="noopener" class="inline-flex items-center gap-1 text-xs mt-2 hover:underline" style="color: var(--color-primary-500);">GEPRIS &#8599;</a>` : ''}
       </div>
       <div class="shrink-0 w-32">
         ${scoreBar(mainScore, mainColor, mainLabel)}

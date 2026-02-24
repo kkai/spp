@@ -79,18 +79,18 @@ export function getRelevanceTier(score: number): RelevanceTier {
 
 export function tierColor(tier: RelevanceTier): string {
   switch (tier) {
-    case 'high': return 'text-emerald-400';
-    case 'medium': return 'text-amber-400';
-    case 'low': return 'text-slate-400';
-    case 'none': return 'text-slate-600';
+    case 'high': return 'text-emerald-600 dark:text-emerald-400';
+    case 'medium': return 'text-amber-600 dark:text-amber-400';
+    case 'low': return 'text-slate-500 dark:text-slate-400';
+    case 'none': return 'text-slate-400 dark:text-slate-600';
   }
 }
 
 export function tierBg(tier: RelevanceTier): string {
   switch (tier) {
-    case 'high': return 'bg-emerald-400/10 border-emerald-400/30';
-    case 'medium': return 'bg-amber-400/10 border-amber-400/30';
-    case 'low': return 'bg-slate-400/10 border-slate-400/30';
-    case 'none': return 'bg-slate-600/10 border-slate-600/30';
+    case 'high': return 'bg-emerald-500/10 border-emerald-500/30';
+    case 'medium': return 'bg-amber-500/10 border-amber-500/30';
+    case 'low': return 'bg-slate-500/10 border-slate-500/30';
+    case 'none': return 'bg-slate-400/10 border-slate-400/30';
   }
 }
